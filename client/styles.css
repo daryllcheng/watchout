@@ -2,4 +2,15 @@
 
 /* Note: an asteroid image is included in this repo.
 Feel free to use it if you like. */
+/*
+.svg {
+}
+*/
+.game {
+  padding: 10px;
+  border: 10px solid black;
+};
 
+.enemy {
+  background-image: url('/Cartoon-Bee-PNG.png');
+}
