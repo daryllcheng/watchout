@@ -32,7 +32,6 @@ let enemies = [...Array(30).keys()]
     return enemyObj;
 });
 
-
 // set enemyCircle on the board
 let enemyCircle = gameBoard.selectAll('circle')
   .data(enemies)
@@ -46,12 +45,8 @@ let enemyCircle = gameBoard.selectAll('circle')
 
 // behavior dragging
 
-var playerXEvent;
-var playerYEvent;
 var drag = d3.behavior.drag()
   .on("drag", function(d,i) {
-    console.log(d);
-    console.log(d.x);
       d.x += d3.event.dx;
       d.y += d3.event.dy;
       d3.select(this).attr("transform", function(d,i){
@@ -71,30 +66,11 @@ let playerSquare = gameBoard.selectAll('.mouse')
   .data([player])
   .enter()
   .append('rect')
-  .attr('x', d => d.x) // change later to be dynamic
-  .attr('y', d => d.y) // change later to be dynamic
-
-// var playerXPosition = playerSquare.data()[0].x;
-// var playerYPosition = playerSquare.data()[0].y;
-
-playerSquare
   .attr('width', d => d.width)
   .attr('height', d => d.height)
+  .attr("transform", "translate(" + 330 + "," + 230 + ")")
   .attr('fill', 'red')
   .call(drag);
-// var playerXPosition = playerSquare.data()[0].x;
-// var playerYPosition = playerSquare.data()[0].y;
-// playerSquare
-//   .attr("transform", "translate(" + x + "," + y + ")")
-
-
-
-// var playerXPosition = playerSquare.attr('x');
-// var playerYPosition = playerSquare.attr('y');
-
-// playerSquare
-//   .attr("transform", "translate(" + playerXPosition + "," + playerYPosition + ")")
-  
 
 
 
@@ -106,11 +82,87 @@ let changePos = function() {
   })
 };
 
-let moveEnemies = function() {  
+let moveEnemies = function() { 
+  enemies.forEach(function(enemy) {
+    enemy.previousX = enemy.x;
+    enemy.previousY = enemy.y;
+  });
   changePos()
   enemyCircle.transition()
   .duration(1000)
   .attr('cx', d => d.x)
-  .attr('cy', d => d.y)
+  .attr('cy', d => d.y);
 }
 setInterval(moveEnemies, 2000);
+
+//Collision
+let playerPositions = () => d3.transform(playerSquare.attr('transform')).translate;
+
+// let enemyPositions = () => enemies.map(enemy => [enemy.x, enemy.y]);
+// let determineCollisions = function() {
+//   return enemyPositions().some(function(enemy) {
+//     return (Math.abs(enemy[0] - playerPositions()[0]) < 10 && Math.abs(enemy[1] - playerPositions()[1]) < 10);
+//   })
+// };
+
+// let determineCollisions = function(t) {
+//   return enemies.some(function(enemy) {
+//     if (!(enemy.previousX && enemy.previousY)) {
+//       return Math.abs(enemy.x - playerPositions()[0]) < 10 && Math.abs(enemy.y - playerPositions()[0]) < 10;
+//     } else {
+//     return (Math.abs(enemy.previousX + (enemy.x - enemy.previousX) * t  - playerPositions()[0]) < 10 
+//       && Math.abs(enemy.previousY + (enemy.y - enemy.previousY) * t - playerPositions()[1]) < 10);
+//     }
+//   })
+// };
+let determineCollisions = function() {
+  var result = false;
+  for (var i = 0; i < enemies.length; i++) {
+    var singleCircleX = d3.select('circle:nth-child(' + (i+1).toString() + ')').attr('cx');
+    var singleCircleY = d3.select('circle:nth-child(' + (i+1).toString() + ')').attr('cy');
+    if (Math.abs(singleCircleX - playerPositions()[0]) < 20 && Math.abs(singleCircleY - playerPositions()[1]) < 20) {
+      result = true;
+    }
+  }
+  return result;
+};
+
+// setInterval(determineCollisions, 100);
+
+//Update current score
+// setInterval(() => gameStats.score++, 100);
+
+
+// var incrementCollisions = function() {
+//     if (determineCollisions()) {
+
+//     if (gameStats.score > gameStats.highScore) {
+//       gameStats.highScore = gameStats.score;
+//     }
+//     gameStats.score = 0;
+//     gameStats.collisions++;
+//   }
+// }
+
+var updateHighScore = () => d3.select('.highscore').select('span').text(gameStats.highScore);
+var updateScore = () => d3.select('.current').select('span').text(gameStats.score);
+var updateCollisions = () => d3.select('.collisions').select('span').text(gameStats.collisions);
+setInterval(function() {
+  // incrementCollisions();
+  gameStats.score++;
+  // determineCollisions();
+  updateCollisions();
+  updateScore();
+  updateHighScore();
+}, 100);
+
+setInterval(function() {
+  if (determineCollisions()) {
+
+    if (gameStats.score > gameStats.highScore) {
+      gameStats.highScore = gameStats.score;
+    }
+    gameStats.score = 0;
+    gameStats.collisions++;
+  }
+}, 10);
