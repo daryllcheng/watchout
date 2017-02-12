@@ -9,19 +9,47 @@ const gameOptions = {
 let gameStats = {
   score: 0,
   highScore: 0,
-  collisions: 0
+  health: 50
 };
 
-const coordinates = {
-  x: d3.scale.linear().domain([0, 100]).range([0, gameOptions.width]),
-  y: d3.scale.linear().domain([0, 100]).range([0, gameOptions.height])
-};
+// set health
+d3.select('.scoreboard').selectAll('svg')
+  .data([gameStats.health])
+  .enter()
+  .append('svg')
+  .attr('height', '10')
+  .append('rect')
+  .attr('class', 'healthBar')
+  .attr('width', d => d * 15+'px')
+  .attr('height', '10')
+  .attr('fill', 'red');
 
 // set board
 let gameBoard = d3.select('.board').append('svg')
   .attr('width', gameOptions.width)
   .attr('height', gameOptions.height)
-  .attr('class', 'game');
+  .attr('class', 'game')
+
+// prepare to add images
+gameBoard
+  .append('filter')
+  .attr('id', 'shuriken')
+  .attr('x', '0%')
+  .attr('y', '0%')
+  .attr('width', '100%')
+  .attr('height', '100%')
+  .append('feImage')
+  .attr('xlink:href', 'shuriken.png');
+
+gameBoard
+  .append('filter')
+  .attr('id', 'ninja')
+  .attr('x', '0%')
+  .attr('y', '0%')
+  .attr('width', '100%')
+  .attr('height', '100%')
+  .append('feImage')
+  .attr('xlink:href', 'ninja.gif');
 
 let enemies = [...Array(30).keys()]
   .map( (enemy, index) => {
@@ -41,11 +69,10 @@ let enemyCircle = gameBoard.selectAll('circle')
   .attr('cx', d => d.x)
   .attr('cy', d => d.y)
   .attr('r', 10)
-  .attr('fill', 'blue')
+  .attr('filter', 'url(#shuriken)');
 
 // behavior dragging
-
-var drag = d3.behavior.drag()
+let drag = d3.behavior.drag()
   .on("drag", function(d,i) {
       d.x += d3.event.dx;
       d.y += d3.event.dy;
@@ -56,8 +83,8 @@ var drag = d3.behavior.drag()
 
   // set player
 let player = {
-  height: 15,
-  width: 15,
+  height: 30,
+  width: 30,
   x: 330,
   y: 230
 }
@@ -69,7 +96,7 @@ let playerSquare = gameBoard.selectAll('.mouse')
   .attr('width', d => d.width)
   .attr('height', d => d.height)
   .attr("transform", "translate(" + 330 + "," + 230 + ")")
-  .attr('fill', 'red')
+  .attr('filter', 'url(#ninja)')
   .call(drag);
 
 
@@ -89,37 +116,20 @@ let moveEnemies = function() {
   });
   changePos()
   enemyCircle.transition()
-  .duration(1000)
+  .duration(2000)
   .attr('cx', d => d.x)
   .attr('cy', d => d.y);
 }
 setInterval(moveEnemies, 2000);
 
 //Collision
-let playerPositions = () => d3.transform(playerSquare.attr('transform')).translate;
-
-// let enemyPositions = () => enemies.map(enemy => [enemy.x, enemy.y]);
-// let determineCollisions = function() {
-//   return enemyPositions().some(function(enemy) {
-//     return (Math.abs(enemy[0] - playerPositions()[0]) < 10 && Math.abs(enemy[1] - playerPositions()[1]) < 10);
-//   })
-// };
-
-// let determineCollisions = function(t) {
-//   return enemies.some(function(enemy) {
-//     if (!(enemy.previousX && enemy.previousY)) {
-//       return Math.abs(enemy.x - playerPositions()[0]) < 10 && Math.abs(enemy.y - playerPositions()[0]) < 10;
-//     } else {
-//     return (Math.abs(enemy.previousX + (enemy.x - enemy.previousX) * t  - playerPositions()[0]) < 10 
-//       && Math.abs(enemy.previousY + (enemy.y - enemy.previousY) * t - playerPositions()[1]) < 10);
-//     }
-//   })
-// };
 let determineCollisions = function() {
-  var result = false;
-  for (var i = 0; i < enemies.length; i++) {
-    var singleCircleX = d3.select('circle:nth-child(' + (i+1).toString() + ')').attr('cx');
-    var singleCircleY = d3.select('circle:nth-child(' + (i+1).toString() + ')').attr('cy');
+  let result = false;
+  let playerPositions = () => d3.transform(playerSquare.attr('transform')).translate;
+
+  for (let i = 0; i < enemies.length; i++) {
+    let singleCircleX = d3.select('.enemy:nth-child(' + (i+3).toString() + ')').attr('cx');
+    let singleCircleY = d3.select('.enemy:nth-child(' + (i+3).toString() + ')').attr('cy');
     if (Math.abs(singleCircleX - playerPositions()[0]) < 20 && Math.abs(singleCircleY - playerPositions()[1]) < 20) {
       result = true;
     }
@@ -127,11 +137,21 @@ let determineCollisions = function() {
   return result;
 };
 
-// setInterval(determineCollisions, 100);
+let collisionEffects = function() {
+  if (determineCollisions()) {
+    gameStats.health--;
+    d3.select('.healthBar').data([gameStats.health]).attr('width', d => d * 15+'px');
+    if (gameStats.health === 0) {
+      if (gameStats.score > gameStats.highScore) {
+        gameStats.highScore = gameStats.score;
+      }
+      gameStats.score = 0;
+      gameStats.health = 50;
+    }
+  }
+}
 
-//Update current score
-// setInterval(() => gameStats.score++, 100);
-
+let throttled = _.throttle(collisionEffects, 100);
 
 // var incrementCollisions = function() {
 //     if (determineCollisions()) {
@@ -140,29 +160,20 @@ let determineCollisions = function() {
 //       gameStats.highScore = gameStats.score;
 //     }
 //     gameStats.score = 0;
-//     gameStats.collisions++;
+//     gameStats.health++;
 //   }
 // }
 
-var updateHighScore = () => d3.select('.highscore').select('span').text(gameStats.highScore);
-var updateScore = () => d3.select('.current').select('span').text(gameStats.score);
-var updateCollisions = () => d3.select('.collisions').select('span').text(gameStats.collisions);
+let updateHighScore = () => d3.select('.highscore').select('span').text(gameStats.highScore);
+let updateScore = () => d3.select('.current').select('span').text(gameStats.score);
+let updateHealth = () => d3.select('.health').select('span').text(gameStats.health);
 setInterval(function() {
   // incrementCollisions();
+  throttled();
   gameStats.score++;
   // determineCollisions();
-  updateCollisions();
+  updateHealth();
   updateScore();
   updateHighScore();
-}, 100);
+}, 50);
 
-setInterval(function() {
-  if (determineCollisions()) {
-
-    if (gameStats.score > gameStats.highScore) {
-      gameStats.highScore = gameStats.score;
-    }
-    gameStats.score = 0;
-    gameStats.collisions++;
-  }
-}, 10);
